@@ -11,6 +11,7 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 
 import {IMoonwellFlagship} from "../interfaces/moonwell/IMoonwellFlagship.sol";
 import {ISolidlyRouter} from "../interfaces/moonwell/ISolidlyRouter.sol";
+import {ISwapper} from "../interfaces/ISwapper.sol";
 import {IRewardDistributor} from "../interfaces/IRewardDistributor.sol";
 import {IUniversalRewardsDistributor} from "../interfaces/moonwell/IUniversalRewardsDistributor.sol";
 
@@ -367,6 +368,13 @@ contract MoonwellFlagshipStrategyVault is
         distributor = _distributor;
     }
 
+    function updateSwapper(address _swapper)
+        public
+        onlyRole(GOVERNOR_ROLE)
+    {
+        swapper = _swapper;
+    }
+
     function updateBonusReward(address _bonusRewardTokens, ISolidlyRouter.Route[] calldata _bonusToAssetRoute, bool _clearBonusToken)
         public
         onlyRole(GOVERNOR_ROLE)
@@ -431,7 +439,8 @@ contract MoonwellFlagshipStrategyVault is
         if (address(poolRewardToken) != address(WETH)) {
             rewardBal = poolRewardToken.balanceOf(address(this));
             if (rewardBal > 0) {
-                swapWeth = _convertExactTokentoToken(outputToNativeRoute, rewardBal);
+                uint256 amountOut = ISwapper(swapper).getAmountsOut(address(poolRewardToken), WETH, rewardBal);
+                swapWeth = ISwapper(swapper).swap(address(poolRewardToken), WETH, rewardBal, amountOut);
             }
         }
         return swapWeth;
@@ -448,11 +457,11 @@ contract MoonwellFlagshipStrategyVault is
                 uint256 rewardBal = 0;
 
                 if (address(bonusRewardTokens[i]) != address(WETH)) {
-                    ISolidlyRouter.Route[] memory bonusToNativeRoute = bonusToLpRoutes[bonusRewardTokens[i]];
                     rewardBal = IERC20(bonusRewardTokens[i]).balanceOf(address(this));
 
                     if (rewardBal > 0) {
-                        swapWeth += _convertExactTokentoToken(bonusToNativeRoute, rewardBal);
+                        uint256 amountOut = ISwapper(swapper).getAmountsOut(bonusRewardTokens[i], WETH, rewardBal);
+                        swapWeth += ISwapper(swapper).swap(bonusRewardTokens[i], WETH, rewardBal, amountOut);
                     }
                 }
             }
@@ -473,7 +482,8 @@ contract MoonwellFlagshipStrategyVault is
         // swap to assetToken
         // Check if assetToken equal to WETH
         if (assetToken0 != (WETH)) {
-            amountOutToken = _convertExactTokentoToken(outputToLpRoute, amountIn);
+            uint256 amountOut = ISwapper(swapper).getAmountsOut(WETH, assetToken0, amountIn);
+            amountOutToken = ISwapper(swapper).swap(WETH, assetToken0, amountIn, amountOut);
         }
 
         return amountOutToken;
