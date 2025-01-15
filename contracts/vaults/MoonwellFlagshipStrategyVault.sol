@@ -94,6 +94,19 @@ contract MoonwellFlagshipStrategyVault is
         }
     }
 
+    function approveSwapper(uint256 _amount) external onlyRole(GOVERNOR_ROLE) {
+        if (swapper != address(0)) {
+            IERC20(WETH).approve(swapper, _amount);
+            poolRewardToken.approve(swapper, _amount);
+
+            uint256 rewardLength = bonusRewardTokens.length;
+            uint256 i = 0;
+            for (i; i < rewardLength; i++) {
+                IERC20(bonusRewardTokens[i]).approve(swapper, _amount);
+            }
+        }
+    }
+
     /****************************************** FARMING CORE FUNCTION ******************************************/
     /**
      * @dev Deposit LP tokens to staking farm.
